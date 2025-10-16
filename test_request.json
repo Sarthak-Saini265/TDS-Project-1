@@ -1,0 +1,15 @@
+{
+  "email": "23f2005347@ds.study.iitm.ac.in",
+  "secret": "geralt_of_rivia",
+  "task": "test-app-20251013-001",
+  "round": 1,
+  "nonce": "test-nonce-12345",
+  "brief": "Create a single-page site that displays 'Hello World' with Bootstrap 5, sets the page title to 'Test App', and shows the current date inside an element with id='current-date'.",
+  "checks": [
+    "Page uses Bootstrap 5 from CDN",
+    "Page title is 'Test App'",
+    "Element with id='current-date' exists and shows a date"
+  ],
+  "evaluation_url": "https://httpbin.org/post",
+  "attachments": []
+}
