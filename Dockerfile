@@ -20,6 +20,7 @@ COPY app.py .
 COPY llm_generator.py .
 COPY github_manager.py .
 COPY config.py .
+COPY aipipe_generator.py .
 
 # Create .env file placeholder (will be populated by Hugging Face secrets)
 RUN touch .env
