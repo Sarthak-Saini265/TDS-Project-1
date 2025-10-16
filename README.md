@@ -1,3 +1,12 @@
+---
+title: LLM Code Deployment API
+emoji: 🚀
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # LLM Code Deployment System
 
 An AI-powered application that automatically builds, deploys, and updates web applications based on natural language briefs.

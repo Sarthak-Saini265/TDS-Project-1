@@ -21,6 +21,10 @@ class Config:
     # Gemini API
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
     
+    # AIpipe API (alternative to Gemini)
+    AIPIPE_TOKEN = os.getenv('AIPIPE_TOKEN')
+    USE_AIPIPE = os.getenv('USE_AIPIPE', 'False').lower() == 'true'
+    
     # Server settings
     PORT = int(os.getenv('PORT', 5000))
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
@@ -35,13 +39,16 @@ class Config:
         required = [
             'STUDENT_SECRET',
             'GITHUB_TOKEN',
-            'GITHUB_USERNAME',
-            'GEMINI_API_KEY'
+            'GITHUB_USERNAME'
         ]
+        
+        # Either Gemini or AIpipe must be configured
+        if not cls.GEMINI_API_KEY and not cls.AIPIPE_TOKEN:
+            required.append('GEMINI_API_KEY or AIPIPE_TOKEN')
         
         missing = []
         for var in required:
-            if not getattr(cls, var):
+            if not getattr(cls, var, None):
                 missing.append(var)
         
         if missing:

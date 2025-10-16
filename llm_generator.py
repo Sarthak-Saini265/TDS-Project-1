@@ -1,21 +1,115 @@
 """
-LLM Code Generator using Google Gemini Pro
+LLM Code Generator using Google Gemini Pro or AIpipe
 Generates web application code based on briefs and requirements
+Automatically falls back to AIpipe if Gemini fails
 """
 import google.generativeai as genai
 from config import Config
 import json
 import base64
 
-# Configure Gemini
-genai.configure(api_key=Config.GEMINI_API_KEY)
+# Always configure both if available
+if Config.GEMINI_API_KEY:
+    genai.configure(api_key=Config.GEMINI_API_KEY)
+    print("✓ Gemini configured (primary)")
+
+if Config.AIPIPE_TOKEN:
+    from aipipe_generator import AIpipeGenerator
+    print("✓ AIpipe configured (fallback)")
+
+if Config.USE_AIPIPE:
+    print("⚠ AIpipe set as primary in config")
 
 class LLMGenerator:
-    """Generates code using Google Gemini Pro"""
+    """Generates code using Google Gemini Pro with AIpipe fallback"""
     
     def __init__(self):
-        # Use Gemini 2.5 Pro model
-        self.model = genai.GenerativeModel('gemini-2.5-pro')
+        # Initialize both models if available
+        self.gemini_model = None
+        self.aipipe_model = None
+        
+        if Config.GEMINI_API_KEY:
+            self.gemini_model = genai.GenerativeModel('gemini-2.5-pro')
+        
+        if Config.AIPIPE_TOKEN:
+            self.aipipe_model = AIpipeGenerator()
+        
+        # Determine primary model
+        if Config.USE_AIPIPE and self.aipipe_model:
+            self.primary = "aipipe"
+            print("🔄 Using AIpipe as primary LLM")
+        elif self.gemini_model:
+            self.primary = "gemini"
+            print("🔄 Using Gemini as primary LLM")
+        elif self.aipipe_model:
+            self.primary = "aipipe"
+            print("🔄 Using AIpipe (Gemini not available)")
+        else:
+            raise ValueError("No LLM provider configured! Need either GEMINI_API_KEY or AIPIPE_TOKEN")
+    
+    def _generate_with_fallback(self, prompt, generation_config=None):
+        """
+        Try to generate content with automatic fallback
+        Tries primary model first, falls back to secondary on failure
+        """
+        errors = []
+        
+        # Try primary model first
+        if self.primary == "gemini" and self.gemini_model:
+            try:
+                print("🤖 Trying Gemini...")
+                if generation_config:
+                    response = self.gemini_model.generate_content(prompt, generation_config=generation_config)
+                else:
+                    response = self.gemini_model.generate_content(prompt)
+                print("✓ Gemini successful")
+                return response
+            except Exception as e:
+                error_msg = str(e)
+                errors.append(f"Gemini failed: {error_msg}")
+                print(f"⚠ Gemini failed: {error_msg}")
+                
+                # Check if it's a quota or timeout error
+                if any(keyword in error_msg.lower() for keyword in ['quota', 'timeout', '429', '504', 'exceeded']):
+                    print("💡 Quota/timeout error detected, trying AIpipe fallback...")
+                    if self.aipipe_model:
+                        try:
+                            print("🤖 Falling back to AIpipe...")
+                            response = self.aipipe_model.generate_content(prompt)
+                            print("✓ AIpipe fallback successful")
+                            return response
+                        except Exception as e2:
+                            errors.append(f"AIpipe fallback failed: {str(e2)}")
+                            print(f"✗ AIpipe fallback failed: {str(e2)}")
+                raise Exception(f"Both providers failed: {'; '.join(errors)}")
+        
+        elif self.primary == "aipipe" and self.aipipe_model:
+            try:
+                print("🤖 Trying AIpipe...")
+                response = self.aipipe_model.generate_content(prompt)
+                print("✓ AIpipe successful")
+                return response
+            except Exception as e:
+                error_msg = str(e)
+                errors.append(f"AIpipe failed: {error_msg}")
+                print(f"⚠ AIpipe failed: {error_msg}")
+                
+                # Try Gemini fallback
+                if self.gemini_model:
+                    try:
+                        print("🤖 Falling back to Gemini...")
+                        if generation_config:
+                            response = self.gemini_model.generate_content(prompt, generation_config=generation_config)
+                        else:
+                            response = self.gemini_model.generate_content(prompt)
+                        print("✓ Gemini fallback successful")
+                        return response
+                    except Exception as e2:
+                        errors.append(f"Gemini fallback failed: {str(e2)}")
+                        print(f"✗ Gemini fallback failed: {str(e2)}")
+                raise Exception(f"Both providers failed: {'; '.join(errors)}")
+        
+        raise Exception("No LLM provider available")
     
     def generate_app(self, brief, checks, attachments=None, task_id=None):
         """
@@ -47,7 +141,7 @@ class LLMGenerator:
             'max_output_tokens': 8192,
         }
         
-        response = self.model.generate_content(
+        response = self._generate_with_fallback(
             prompt,
             generation_config=generation_config
         )
@@ -372,7 +466,7 @@ Provide only the complete, updated HTML code.
             'max_output_tokens': 8192,
         }
         
-        response = self.model.generate_content(
+        response = self._generate_with_fallback(
             prompt,
             generation_config=generation_config
         )
