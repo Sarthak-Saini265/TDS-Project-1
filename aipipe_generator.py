@@ -6,29 +6,31 @@ import requests
 from config import Config
 
 class AIpipeGenerator:
-    """Generates code using AIpipe API"""
+    """Generates code using AIpipe API (via OpenRouter)"""
     
     def __init__(self):
-        self.api_url = "https://aipipe.ds.study.iitm.ac.in"
+        # Use OpenRouter endpoint which is more reliable
+        self.api_url = "https://aipipe.org/openrouter/v1"
         self.token = Config.AIPIPE_TOKEN
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
-        print(f"✓ Connected to AIpipe API")
+        print(f"✓ Connected to AIpipe API via OpenRouter")
     
     def generate_content(self, prompt):
         """
-        Generate content using AIpipe API
+        Generate content using AIpipe's OpenRouter proxy
         
         Args:
             prompt: The prompt to send to AIpipe
         
         Returns:
-            Response object with text attribute
+            Response object with Gemini-compatible structure
         """
+        # Use OpenRouter's chat completions format with Gemini model
         payload = {
-            "model": "gemini-2.0-flash-exp",  # or whatever model AIpipe supports
+            "model": "google/gemini-2.0-flash-lite-001",  # Free Gemini model via OpenRouter
             "messages": [
                 {
                     "role": "user",
@@ -50,25 +52,39 @@ class AIpipeGenerator:
             
             result = response.json()
             
+            # OpenRouter returns OpenAI-style format, convert to Gemini-style
             # Create a response object that mimics Gemini's structure
             class AIpipeResponse:
-                def __init__(self, content):
-                    self.text = content
-                    self.parts = [type('Part', (), {'text': content})()]
+                def __init__(self, openrouter_response):
+                    # Extract text from OpenRouter response format
+                    if 'choices' in openrouter_response and len(openrouter_response['choices']) > 0:
+                        choice = openrouter_response['choices'][0]
+                        if 'message' in choice and 'content' in choice['message']:
+                            self.text = choice['message']['content']
+                        else:
+                            self.text = ""
+                    else:
+                        self.text = ""
+                    
+                    # Store the full response structure
+                    self._raw_response = openrouter_response
+                    
+                    # Create Gemini-compatible structure
                     self.candidates = [
                         type('Candidate', (), {
                             'content': type('Content', (), {
-                                'parts': [type('Part', (), {'text': content})()]
+                                'parts': [type('Part', (), {'text': self.text})()]
                             })()
                         })()
                     ]
+                    
+                    # Create parts list for compatibility
+                    self.parts = []
+                    if self.text:
+                        part_obj = type('Part', (), {'text': self.text})()
+                        self.parts.append(part_obj)
             
-            # Extract the generated text from AIpipe response
-            if 'choices' in result and len(result['choices']) > 0:
-                content = result['choices'][0]['message']['content']
-                return AIpipeResponse(content)
-            else:
-                raise ValueError("No content in AIpipe response")
+            return AIpipeResponse(result)
                 
         except requests.exceptions.RequestException as e:
             print(f"✗ AIpipe API error: {e}")
