@@ -106,7 +106,8 @@ def api_endpoint():
                 'status': 'success',
                 'message': f'Round {round_num} completed',
                 'repo_url': result.get('repo_url'),
-                'pages_url': result.get('pages_url')
+                'pages_url': result.get('pages_url'),
+                'llm_provider': result.get('llm_provider', 'Unknown')  # Show which LLM was used
             }), 200
         else:
             print(f"\n❌ Request failed: {result.get('error')}")
@@ -176,11 +177,16 @@ def process_round_1(email, task_id, round_num, nonce, brief, checks, evaluation_
         
         print(f"\n[4/4] Round 1 complete! ✓")
         
+        # Get which provider was used
+        provider_used = llm_generator.last_provider_used or "Unknown"
+        print(f"🔧 Generated using: {provider_used}")
+        
         return {
             'success': True,
             'repo_url': repo_info['repo_url'],
             'commit_sha': repo_info['commit_sha'],
-            'pages_url': repo_info['pages_url']
+            'pages_url': repo_info['pages_url'],
+            'llm_provider': provider_used  # Include in response
         }
         
     except Exception as e:
@@ -256,11 +262,16 @@ def process_round_2(email, task_id, round_num, nonce, brief, checks, evaluation_
         
         print(f"\n✓ Round 2 complete!")
         
+        # Get which provider was used
+        provider_used = llm_generator.last_provider_used or "Unknown"
+        print(f"🔧 Generated using: {provider_used}")
+        
         return {
             'success': True,
             'repo_url': repo_info['repo_url'],
             'commit_sha': repo_info['commit_sha'],
-            'pages_url': repo_info['pages_url']
+            'pages_url': repo_info['pages_url'],
+            'llm_provider': provider_used  # Include in response
         }
         
     except Exception as e:

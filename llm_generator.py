@@ -27,6 +27,7 @@ class LLMGenerator:
         # Initialize both models if available
         self.gemini_model = None
         self.aipipe_model = None
+        self.last_provider_used = None  # Track which provider was actually used
         
         if Config.GEMINI_API_KEY:
             self.gemini_model = genai.GenerativeModel('gemini-2.5-pro')
@@ -63,6 +64,7 @@ class LLMGenerator:
                 else:
                     response = self.gemini_model.generate_content(prompt)
                 print("✓ Gemini successful")
+                self.last_provider_used = "Gemini"  # Track successful provider
                 return response
             except Exception as e:
                 error_msg = str(e)
@@ -77,6 +79,7 @@ class LLMGenerator:
                             print("🤖 Falling back to AIpipe...")
                             response = self.aipipe_model.generate_content(prompt)
                             print("✓ AIpipe fallback successful")
+                            self.last_provider_used = "AIpipe (fallback)"  # Track fallback
                             return response
                         except Exception as e2:
                             errors.append(f"AIpipe fallback failed: {str(e2)}")
@@ -88,6 +91,7 @@ class LLMGenerator:
                 print("🤖 Trying AIpipe...")
                 response = self.aipipe_model.generate_content(prompt)
                 print("✓ AIpipe successful")
+                self.last_provider_used = "AIpipe"  # Track successful provider
                 return response
             except Exception as e:
                 error_msg = str(e)
@@ -103,6 +107,7 @@ class LLMGenerator:
                         else:
                             response = self.gemini_model.generate_content(prompt)
                         print("✓ Gemini fallback successful")
+                        self.last_provider_used = "Gemini (fallback)"  # Track fallback
                         return response
                     except Exception as e2:
                         errors.append(f"Gemini fallback failed: {str(e2)}")
